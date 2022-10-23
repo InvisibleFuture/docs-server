@@ -1,5 +1,4 @@
 # -*- coding:utf-8 -*-
-from email import header
 import time, os, shutil, uvicorn, zipfile, ctypes, platform, uuid, requests
 from fastapi import FastAPI, Request, Response, HTTPException, Cookie
 from fastapi.staticfiles import StaticFiles
