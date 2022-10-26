@@ -9,9 +9,9 @@ class Option(object):
         if os.path.isfile(self.filename):
             with open(self.filename, "r", encoding="utf-8") as f:
                 self.option = yaml.load(f, Loader=yaml.FullLoader)
+                # 检查格式是否正确或者直接补全
         else:
-            # TODO: 从上一级抄写 ADMIN?
-            self.option = {'private': [], 'admin': []}
+            self.option = {'private': [], 'admin': [], 'order':[]}
             with open(self.filename, "w", encoding="utf-8") as f:
                 yaml.dump(self.option, f)
 
@@ -46,3 +46,13 @@ class Option(object):
         with open(self.filename, "w", encoding="utf-8") as f:
             yaml.dump(self.option, f)
 
+
+    # 获取排序列表
+    def getOrder(self):
+        return self.option['order'] if 'order' in self.option.keys() else []
+
+    # 设置排序列表
+    def setOrder(self, data:list):
+        self.option['order'] = data
+        with open(self.filename, "w", encoding="utf-8") as f:
+            yaml.dump(self.option, f)

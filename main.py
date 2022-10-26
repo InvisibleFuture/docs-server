@@ -274,108 +274,6 @@ def zip_file_path(input_path, output_path, output_name):
 
 from option import Option
 
-## 查看文件夹
-#@app.get("/api/{folids}/{folid}/{files}")
-#def files_query(folids:str,folid:str,files:str,session:str=Cookie(None)):
-#    dir = f'static/{folids}/{folid}/{files}'
-#
-#    mobile = session_list.get(session)
-#    print("session:", session)
-#    print("mobile:", mobile)
-#
-#    # 此文件夹的权限配置
-#    # 此文件夹内被设为私有的文件(或是被设为公开的文件)
-#    # 分别统计文件夹下各类型文件大小和数量(视频, 图片 其它) (递归 item 下的所有子目录)
-#
-#    option = Option(dir)
-#
-#    data = []
-#    video_size, image_size, other_size = 0, 0, 0
-#    video_count, image_count, other_count = 0, 0, 0
-#    for root, dirs, files in os.walk(dir):
-#        for j in files:
-#            # 如果已经登录或者文件不是私有(则不排除)
-#            if mobile is not None or not option.isPrivate(j):
-#                print('filename:', j, option.isPrivate(j))
-#                if j.endswith(('.mp4', '.mkv', '.avi', '.rmvb')):
-#                    video_count+=1
-#                    video_size += os.path.getsize(root + '/' + j)
-#                elif j.endswith(('.jpg', '.png', '.gif', '.jpeg')):
-#                    image_count+=1
-#                    image_size += os.path.getsize(root + '/' + j)
-#                else:
-#                    other_count+=1
-#                    other_size += os.path.getsize(root + '/' + j)
-#                # 设置文件为私有
-#                # option.setPrivate(j, True)
-#    return JSONResponse({
-#        'name': files,
-#        'free': get_free_space(dir),
-#        'size': size(dir),
-#        'count': count(dir),
-#        'type': 'dir',
-#        'list': data,
-#        'sizes':{
-#            'videos': video_size,
-#            'images': image_size,
-#            'document': other_size,
-#        },
-#        'counts':{
-#            'videos': video_count,
-#            'images': image_count,
-#            'document': other_count,
-#        },
-#    })
-#
-#
-## 修改文件夹
-#@app.patch("/api/{folids}/{folid}/{files}")
-#def files_patch(folids:str,folid:str,files:str,session:str=Cookie(None),private:str=None,admin:str=None):
-#    dir = f'static/{folids}/{folid}/{files}'
-#    mobile = session_list.get(session)
-#    option = Option(dir)
-#
-#    # 已经登录并且有权限
-#    if mobile is None:
-#        assert Response(status_code=400, content='没有登录身份')
-#
-#    # 验证是否有权限管理此文件夹下的所有文件
-#    if not option.isAdmin(mobile):
-#        assert Response(status_code=400, content='没有权限修改')
-#
-#    # 操作修改目标(private, admin)
-#    if private:
-#        option.setPrivate()
-#
-#
-## 修改具体文件
-#@app.patch("/api/{folids}/{folid}/{files}/{file}")
-#def files_patch(folids:str,folid:str,files:str,file:str,session:str=Cookie(None),private:str=None,admin:str=None):
-#    dir = f'static/{folids}/{folid}/{files}'
-#    mobile = session_list.get(session)
-#    option = Option(dir)
-#
-#    # 已经登录并且有权限
-#    if mobile is None:
-#        assert Response(status_code=400, content='没有登录身份')
-#
-#    # 验证是否有权限管理此文件夹下的所有文件
-#    if not option.isAdmin(mobile):
-#        assert Response(status_code=400, content='没有权限修改')
-#
-#    # 操作修改目标(private, admin)
-#    if private:
-#        option.setPrivate(file)
-#
-#    return { 'message': '修改完毕' }
-#
-#
-## 查看具体文件
-#@app.get("/api/{folids}/{folid}/{files}/{file}")
-#def file_query(folids:str,folid:str,files:str,file:str):
-#    return '下载具体文件'
-
-
 # 中间件, 文件和文件夹
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next, session:str=Cookie(None)):
@@ -464,6 +362,7 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
                         'images': image_count,
                         'document': other_count,
                     },
+                    'order': option.getOrder(),
                 })
             # 判断文件是否存在(提供文件下载)
             elif os.path.isfile(dir):
