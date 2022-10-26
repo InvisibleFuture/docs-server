@@ -214,8 +214,9 @@ def search_files(name: str):
 
 def count(path, count: int = 0):
     for root, dirs, files in os.walk(path):
-        for each in files:
-            count += 1
+        for j in files:
+            if j != 'option.yaml':
+                count += 1
     return count
 
 def size(path):
@@ -225,7 +226,8 @@ def size(path):
         if os.path.isdir(os.path.join(path, i)):  # 判断是否为目录
             m = m + size(os.path.join(path, i))  # 调用递归，求得目录大小
         else:
-            m = m + os.path.getsize(os.path.join(path, i))  # 若不是目录，加上该文件的大小
+            if i != 'option.yaml':
+                m = m + os.path.getsize(os.path.join(path, i))  # 若不是目录，加上该文件的大小
     return m  # 返回目录总大小
 
 def get_free_space(folder):
