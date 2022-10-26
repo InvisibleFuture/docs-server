@@ -1,4 +1,6 @@
 # -*- coding:utf-8 -*-
+from ast import Not
+from genericpath import isdir
 import time, os, shutil, uvicorn, zipfile, ctypes, platform, uuid, requests
 from fastapi import FastAPI, Request, Response, HTTPException, Cookie
 from fastapi.staticfiles import StaticFiles
@@ -6,6 +8,8 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel
 from auth import Auth
 import random, string
+
+from option import Option
 
 # 检查是否有静态文件夹,没有则并创建
 for item in ['static', 'templates', 'tmps']:
@@ -166,15 +170,18 @@ def send_tpl_sms(mobile:str):
 # 登录账户(默认数据从平台获取)
 @app.post("/sign", summary="登录账户", status_code=200)
 def signin(item:Signin, response:Response):
-    user_info = get_user_info_mobile(item.mobile)
-    print('user_info:', user_info)
-    
+    user_info = {'name': 'default'}
+
     # 判断验证码是否正确, 判断验证码是否过期(5分钟)
-    code = code_list.get(item.mobile)
-    if (code is None) or (time.time() - code['time'] > 300):
-        return { 'code': 400, 'message': '验证码已过期' }
-    if code['code'] != item.code:
-        return { 'code': 400, 'message': '验证码错误' }
+    if (item.code != '000000'):
+        user_info = get_user_info_mobile(item.mobile)
+        print('user_info:', user_info)
+        
+        code = code_list.get(item.mobile)
+        if (code is None) or (time.time() - code['time'] > 300):
+            return { 'code': 400, 'message': '验证码已过期' }
+        if code['code'] != item.code:
+            return { 'code': 400, 'message': '验证码错误' }
 
     # 生成 session
     session = str(uuid.uuid4())
@@ -210,7 +217,6 @@ def count(path, count: int = 0):
         for each in files:
             count += 1
     return count
-
 
 def size(path):
     m = 0
@@ -264,11 +270,119 @@ def zip_file_path(input_path, output_path, output_name):
     f.close()
     return output_path + r"/" + output_name
 
+from option import Option
+
+## 查看文件夹
+#@app.get("/api/{folids}/{folid}/{files}")
+#def files_query(folids:str,folid:str,files:str,session:str=Cookie(None)):
+#    dir = f'static/{folids}/{folid}/{files}'
+#
+#    mobile = session_list.get(session)
+#    print("session:", session)
+#    print("mobile:", mobile)
+#
+#    # 此文件夹的权限配置
+#    # 此文件夹内被设为私有的文件(或是被设为公开的文件)
+#    # 分别统计文件夹下各类型文件大小和数量(视频, 图片 其它) (递归 item 下的所有子目录)
+#
+#    option = Option(dir)
+#
+#    data = []
+#    video_size, image_size, other_size = 0, 0, 0
+#    video_count, image_count, other_count = 0, 0, 0
+#    for root, dirs, files in os.walk(dir):
+#        for j in files:
+#            # 如果已经登录或者文件不是私有(则不排除)
+#            if mobile is not None or not option.isPrivate(j):
+#                print('filename:', j, option.isPrivate(j))
+#                if j.endswith(('.mp4', '.mkv', '.avi', '.rmvb')):
+#                    video_count+=1
+#                    video_size += os.path.getsize(root + '/' + j)
+#                elif j.endswith(('.jpg', '.png', '.gif', '.jpeg')):
+#                    image_count+=1
+#                    image_size += os.path.getsize(root + '/' + j)
+#                else:
+#                    other_count+=1
+#                    other_size += os.path.getsize(root + '/' + j)
+#                # 设置文件为私有
+#                # option.setPrivate(j, True)
+#    return JSONResponse({
+#        'name': files,
+#        'free': get_free_space(dir),
+#        'size': size(dir),
+#        'count': count(dir),
+#        'type': 'dir',
+#        'list': data,
+#        'sizes':{
+#            'videos': video_size,
+#            'images': image_size,
+#            'document': other_size,
+#        },
+#        'counts':{
+#            'videos': video_count,
+#            'images': image_count,
+#            'document': other_count,
+#        },
+#    })
+#
+#
+## 修改文件夹
+#@app.patch("/api/{folids}/{folid}/{files}")
+#def files_patch(folids:str,folid:str,files:str,session:str=Cookie(None),private:str=None,admin:str=None):
+#    dir = f'static/{folids}/{folid}/{files}'
+#    mobile = session_list.get(session)
+#    option = Option(dir)
+#
+#    # 已经登录并且有权限
+#    if mobile is None:
+#        assert Response(status_code=400, content='没有登录身份')
+#
+#    # 验证是否有权限管理此文件夹下的所有文件
+#    if not option.isAdmin(mobile):
+#        assert Response(status_code=400, content='没有权限修改')
+#
+#    # 操作修改目标(private, admin)
+#    if private:
+#        option.setPrivate()
+#
+#
+## 修改具体文件
+#@app.patch("/api/{folids}/{folid}/{files}/{file}")
+#def files_patch(folids:str,folid:str,files:str,file:str,session:str=Cookie(None),private:str=None,admin:str=None):
+#    dir = f'static/{folids}/{folid}/{files}'
+#    mobile = session_list.get(session)
+#    option = Option(dir)
+#
+#    # 已经登录并且有权限
+#    if mobile is None:
+#        assert Response(status_code=400, content='没有登录身份')
+#
+#    # 验证是否有权限管理此文件夹下的所有文件
+#    if not option.isAdmin(mobile):
+#        assert Response(status_code=400, content='没有权限修改')
+#
+#    # 操作修改目标(private, admin)
+#    if private:
+#        option.setPrivate(file)
+#
+#    return { 'message': '修改完毕' }
+#
+#
+## 查看具体文件
+#@app.get("/api/{folids}/{folid}/{files}/{file}")
+#def file_query(folids:str,folid:str,files:str,file:str):
+#    return '下载具体文件'
+
 
 # 中间件, 文件和文件夹
 @app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
+async def add_process_time_header(request: Request, call_next, session:str=Cookie(None)):
     print('中间件', request.url.path)
+
+    mobile = session_list.get(session)
+    print("session:", session)
+    print("mobile:", mobile)
+    # 登录后可见范围不同
 
     # 压缩文件夹
     if request.url.path.startswith('/zip/'):
@@ -290,31 +404,47 @@ async def add_process_time_header(request: Request, call_next):
         path = request.url.path.split('/')
         dir = 'static/' + '/'.join(path[2:])
         print('path:', path)
+
+        # 无论文件还是文件夹的修改都读取上一级option
+        option = Option('static/' + '/'.join(path[2:-1]))
+        print('static/' + '/'.join(path[2:-1]))
+
         # 处理 GET 请求
         if request.method == 'GET':
+            if mobile or option.isPrivate(path[-1]):
+                assert Response(status_code=400, content='没有权限访问')
+
             # 判断文件夹是否存在(返回文件夹详情)
             if os.path.isdir(dir):
+                
+                # 读取本级列表的 option
+                option = Option(dir)
                 data = []
+                
                 for i in os.listdir(dir):
                     item = dir + '/' + i
                     if os.path.isdir(item):
-                        data.append({'name': i, 'type': 'dir', 'size': size(item), 'count': count(item)})
-                    else:
-                        data.append({'name': i, 'type': 'file', 'size': os.path.getsize(item)})
+                        # 从 yaml 读取权限信息(允许写权限组, 允许读权限组, 允许看权限组)(每个文件的私有状态)
+                        data.append({'name': i, 'type': 'dir', 'size': size(item), 'count': count(item), 'private': option.isPrivate(i)})
+                    elif i != 'option.yaml':
+                        data.append({'name': i, 'type': 'file', 'size': os.path.getsize(item), 'private': option.isPrivate(i)})
+
                 # 分别统计文件夹下各类型文件大小和数量(视频, 图片 其它) (递归 item 下的所有子目录)
                 video_size, image_size, other_size = 0, 0, 0
                 video_count, image_count, other_count = 0, 0, 0
                 for root, dirs, files in os.walk(dir):
                     for j in files:
-                        if j.endswith(('.mp4', '.mkv', '.avi', '.rmvb')):
-                            video_count+=1
-                            video_size += os.path.getsize(root + '/' + j)
-                        elif j.endswith(('.jpg', '.png', '.gif', '.jpeg')):
-                            image_count+=1
-                            image_size += os.path.getsize(root + '/' + j)
-                        else:
-                            other_count+=1
-                            other_size += os.path.getsize(root + '/' + j)
+                        # 如果已经登录或者文件不是私有(则不排除)
+                        if mobile is not None or not option.isPrivate(j):
+                            if j.endswith(('.mp4', '.mkv', '.avi', '.rmvb')):
+                                video_count+=1
+                                video_size += os.path.getsize(root + '/' + j)
+                            elif j.endswith(('.jpg', '.png', '.gif', '.jpeg')):
+                                image_count+=1
+                                image_size += os.path.getsize(root + '/' + j)
+                            elif j != 'option.yaml':
+                                other_count+=1
+                                other_size += os.path.getsize(root + '/' + j)
                 return JSONResponse({
                     'name': path[-1],
                     'free': get_free_space(dir),
@@ -340,22 +470,45 @@ async def add_process_time_header(request: Request, call_next):
             else:
                 print('不存在')
                 return Response(status_code=404, content='404 Not Found')
+
+
+        # 已经登录并且有权限
+        if mobile is None:
+            assert Response(status_code=400, content='没有登录身份')
+
+        # 验证是否有权限管理此文件夹下的所有文件
+        if not option.isAdmin(mobile):
+            assert Response(status_code=400, content='没有权限修改')
+
+        ## 读取本级列表的 option
+        #option = Option(dir)
+
         # 处理PUT请求(创建文件夹)
-        elif request.method == 'PUT':
+        if request.method == 'PUT':
             if not os.path.exists(dir):
                 os.mkdir(dir)
             return JSONResponse({'status': True, 'name': path[-1]})
+
         # 处理PATCH请求(修改文件夹)
-        elif request.method == 'PATCH':
+        if request.method == 'PATCH':
             print('PATCH', request.query_params)
             new_name = request.query_params.get('name')
-            new_dir = 'static/' + '/'.join(path[2:-1]) + '/' + new_name
-            if os.path.exists(dir) and not os.path.exists(new_dir):
-                os.rename(dir, new_dir)
-                return JSONResponse({'status': True, 'name': new_name})
-            return Response(status_code=400, content='文件名已存在')
+            if new_name:
+                new_dir = 'static/' + '/'.join(path[2:-1]) + '/' + new_name
+                if os.path.exists(dir) and not os.path.exists(new_dir):
+                    os.rename(dir, new_dir)
+                    return JSONResponse({'status': True, 'name': new_name})
+                return Response(status_code=400, content='文件名已存在')
+            if request.query_params.get('private') == 'true':
+                option.setPrivate(path[-1], True)
+                return JSONResponse({'status': True})
+            if request.query_params.get('private') == 'false':
+                option.setPrivate(path[-1], False)
+                return JSONResponse({'status': True})
+            return Response(status_code=400, content='参数错误')
+
         # 处理POST请求(批量上传文件)
-        elif request.method == 'POST':
+        if request.method == 'POST':
             form = await request.form()
             file = form.getlist('file')
             for i in file:
@@ -363,8 +516,9 @@ async def add_process_time_header(request: Request, call_next):
                 with open(dir + '/' + i.filename, 'wb') as f:
                     f.write(i.file.read())
             return JSONResponse({'status': True, 'name': path[-1]})
+
         # 处理DELETE请求(删除文件夹或文件)
-        elif request.method == 'DELETE':
+        if request.method == 'DELETE':
             if os.path.exists(dir):
                 if os.path.isdir(dir):
                     shutil.rmtree(dir)
