@@ -329,6 +329,10 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
                     elif i != 'option.yaml':
                         data.append({'name': i, 'type': 'file', 'size': os.path.getsize(item), 'private': option.isPrivate(i)})
 
+                # 按 order 排序
+                order = option.getOrder()
+                data.sort(key=lambda x: order.index(x['name']) if x['name'] in order else len(order))
+
                 # 分别统计文件夹下各类型文件大小和数量(视频, 图片 其它) (递归 item 下的所有子目录)
                 video_size, image_size, other_size = 0, 0, 0
                 video_count, image_count, other_count = 0, 0, 0
@@ -393,6 +397,8 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
         # 处理PATCH请求(修改文件夹)
         if request.method == 'PATCH':
             print('PATCH', request.query_params)
+
+            # 处理重命名
             new_name = request.query_params.get('name')
             if new_name:
                 new_dir = 'static/' + '/'.join(path[2:-1]) + '/' + new_name
@@ -400,12 +406,24 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
                     os.rename(dir, new_dir)
                     return JSONResponse({'status': True, 'name': new_name})
                 return Response(status_code=400, content='文件名已存在')
-            if request.query_params.get('private') == 'true':
-                option.setPrivate(path[-1], True)
+            
+            # 处理私有
+            private = request.query_params.get('private')
+            if private:
+                option.setPrivate(path[-1], private == 'true')
                 return JSONResponse({'status': True})
-            if request.query_params.get('private') == 'false':
-                option.setPrivate(path[-1], False)
+            
+            # 读取本级列表的 option
+            option = Option(dir)
+            
+            # 处理排序
+            order = request.query_params.get('order')
+            if order:
+                print('xxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
+                print('order', order)
+                option.setOrder(order.split(","))
                 return JSONResponse({'status': True})
+
             return Response(status_code=400, content='参数错误')
 
         # 处理POST请求(批量上传文件)
