@@ -41,9 +41,9 @@ def queryAccount(id:str=None, mobile:str=None, name:str=None):
     if id == '0' or mobile == '0':
         return {
             'id': '0',
-            'name': '匿名用户',
+            'name': '测试账户',
             'mobile': '00000000',
-            'avatar': 'https://img.lzhhjs.cn/2020/10/27/1603793988.png',
+            'avatar': 'https://satori.love/api/avatar/93ac7001f4eeca1a793a72c3aa1d92ea.jpg',
         }
     for item in account_list:
         if mobile and item['mobile'] == mobile:

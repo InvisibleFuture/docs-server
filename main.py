@@ -120,29 +120,19 @@ def feishu_appid():
 @app.get("/sign", summary="获取资料")
 def profile(session:str=Cookie(None)):
     id = session_list.get(session)
-    print("session:", session)
-    print("mobile:", id)
-
     if id is None:
         return {
             'id': '',
             'online': False,
             'admin': False,
             'name':'游客',
-            'avatar':'https://avatars.githubusercontent.com/u/6184465?v=4',
+            'avatar':'https://satori.love/api/avatar/93ac7001f4eeca1a793a72c3aa1d92ea.jpg',
         }
-    if id == '0':
-        return {
-            'id': '0',
-            'online': True,
-            'admin': True,
-            'name':'测试账户',
-            'avatar':'https://avatars.githubusercontent.com/u/6184465?v=4',
-        }
+    option = Option('static')
     user = queryAccount(id=id)
-    if user is None:
+    if user:
         user['online'] = True
-        user['admin'] = False
+        user['admin'] = option.isAdmin(id)
         return user
     raise HTTPException(status_code=401, detail='请重新登录')
 
