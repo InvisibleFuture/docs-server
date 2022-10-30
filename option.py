@@ -20,14 +20,14 @@ class Option(object):
     def isPrivate(self, name):
         return name in set(self.option['private'])
 
-
     # 设置私有(设为私有或公开)
     def setPrivate(self, name, value):
         if value:
             self.option['private'].append(name)
         else:
             self.option['private'].remove(name)
-        # 保存到文件
+        # 保存到文件(去重)
+        self.option['private'] = list(set(self.option['private']))
         with open(self.filename, "w", encoding="utf-8") as f:
             yaml.dump(self.option, f)
 
