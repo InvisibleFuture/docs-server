@@ -38,6 +38,13 @@ def update_account_list():
 def queryAccount(id:str=None, mobile:str=None, name:str=None):
     update_account_list()
     user = None
+    if id == '0' or mobile == '0':
+        return {
+            'id': '0',
+            'name': '匿名用户',
+            'mobile': '00000000',
+            'avatar': 'https://img.lzhhjs.cn/2020/10/27/1603793988.png',
+        }
     for item in account_list:
         if mobile and item['mobile'] == mobile:
             user = item

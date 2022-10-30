@@ -89,8 +89,7 @@ def user_list(id:str=None, mobile:str=None, name:str=None, admin:str=None, page:
         option = Option('static' + admin)
         for i in accounts:
             account = queryAccount(id=i['id'])
-            i['admin'] = option.isAdmin(account['mobile'])
-
+            i['admin'] = option.isAdmin(account['id'])
     # 去除手机号字段
     for i in accounts:
         i.pop('mobile')
@@ -103,19 +102,14 @@ def user_list(id:str=None, mobile:str=None, name:str=None, admin:str=None, page:
 def feishu_callback(code:str, response:Response):
     auth.authorize_user_access_token(code)
     item = auth.get_user_info()
-    print('user_info:', item)
-
-    # 从平台获取用户信息
-    user_info = queryAccount(mobile=item.mobile)
-    print('user_info:', user_info)
-    if user_info is None:
+    user = queryAccount(mobile=item.mobile)
+    if user is None:
         raise HTTPException(status_code=401, detail='手机号未注册')
-
     # 生成 session
     session = str(uuid.uuid4())
-    session_list[session] = item.mobile
+    session_list[session] = user['id']
     response.set_cookie(key="session", value=session)
-    return {"msg": "登录成功", "userinfo": user_info}
+    return user
 
 
 @app.get("/feishu/get_appid")
@@ -125,11 +119,11 @@ def feishu_appid():
 # 获取账户信息
 @app.get("/sign", summary="获取资料")
 def profile(session:str=Cookie(None)):
-    mobile = session_list.get(session)
+    id = session_list.get(session)
     print("session:", session)
-    print("mobile:", mobile)
+    print("mobile:", id)
 
-    if mobile is None:
+    if id is None:
         return {
             'id': '',
             'online': False,
@@ -137,7 +131,7 @@ def profile(session:str=Cookie(None)):
             'name':'游客',
             'avatar':'https://avatars.githubusercontent.com/u/6184465?v=4',
         }
-    if mobile == '0':
+    if id == '0':
         return {
             'id': '0',
             'online': True,
@@ -145,7 +139,7 @@ def profile(session:str=Cookie(None)):
             'name':'测试账户',
             'avatar':'https://avatars.githubusercontent.com/u/6184465?v=4',
         }
-    user = queryAccount(mobile=mobile)
+    user = queryAccount(id=id)
     if user is None:
         user['online'] = True
         user['admin'] = False
@@ -189,24 +183,19 @@ def send_tpl_sms(mobile:str):
 # 登录账户(默认数据从平台获取)
 @app.post("/sign", summary="登录账户", status_code=200)
 def signin(item:Signin, response:Response):
-    user_info = {'name': 'default'}
-
     # 判断验证码是否正确, 判断验证码是否过期(5分钟)
+    user = queryAccount(mobile=item.mobile)
     if (item.code != '000000'):
-        user_info = queryAccount(mobile=item.mobile)
-        print('user_info:', user_info)
-        
         code = code_list.get(item.mobile)
         if (code is None) or (time.time() - code['time'] > 300):
             return { 'code': 400, 'message': '验证码已过期' }
         if code['code'] != item.code:
             return { 'code': 400, 'message': '验证码错误' }
-
     # 生成 session
     session = str(uuid.uuid4())
-    session_list[session] = item.mobile
+    session_list[session] = user['id']
     response.set_cookie(key="session", value=session)
-    return {"msg": "登录成功", "userinfo": user_info}
+    return user
 
 
 # 退出登录
@@ -298,9 +287,9 @@ from option import Option
 async def add_process_time_header(request: Request, call_next, session:str=Cookie(None)):
     print('中间件', request.url.path)
 
-    mobile = session_list.get(session)
+    id = session_list.get(session)
     print("session:", session)
-    print("mobile:", mobile)
+    print("mobile:", id)
     # 登录后可见范围不同
 
     # 压缩文件夹
@@ -330,7 +319,7 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
 
         # 处理 GET 请求
         if request.method == 'GET':
-            if mobile or option.isPrivate(path[-1]):
+            if id or option.isPrivate(path[-1]):
                 assert Response(status_code=400, content='没有权限访问')
 
             # 判断文件夹是否存在(返回文件夹详情)
@@ -344,7 +333,7 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
                     item = dir + '/' + i
                     if os.path.isdir(item):
                         # 从 yaml 读取权限信息(允许写权限组, 允许读权限组, 允许看权限组)(每个文件的私有状态)
-                        data.append({'name': i, 'type': 'dir', 'size': size(item), 'count': count(item), 'private': option.isPrivate(i)})
+                        data.append({'name': i, 'type': 'dir', 'size': size(item), 'count': count(item), 'private': option.isPrivate(i), 'admin': option.getAdmin()})
                     elif i != 'option.yaml':
                         data.append({'name': i, 'type': 'file', 'size': os.path.getsize(item), 'private': option.isPrivate(i)})
 
@@ -358,7 +347,7 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
                 for root, dirs, files in os.walk(dir):
                     for j in files:
                         # 如果已经登录或者文件不是私有(则不排除)
-                        if mobile is not None or not option.isPrivate(j):
+                        if id is not None or not option.isPrivate(j):
                             if j.endswith(('.mp4', '.mkv', '.avi', '.rmvb')):
                                 video_count+=1
                                 video_size += os.path.getsize(root + '/' + j)
@@ -372,10 +361,12 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
                 adminMobileList = option.getAdmin()
                 adminList = []
                 for x in adminMobileList:
-                    admin = queryAccount(mobile=x)
-                    admin['admin'] = True
-                    adminList.append(admin)
-
+                    if x == '0':
+                        continue
+                    admin = queryAccount(id=x)
+                    if admin is not None:
+                        admin['admin'] = True
+                        adminList.append(admin)
                 return JSONResponse({
                     'name': path[-1],
                     'free': get_free_space(dir),
@@ -406,15 +397,13 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
 
 
         # 已经登录并且有权限
-        if mobile is None:
+        if id is None:
             assert Response(status_code=400, content='没有登录身份')
 
         # 验证是否有权限管理此文件夹下的所有文件
-        if not option.isAdmin(mobile):
+        account = queryAccount(id=id)
+        if account is None or not option.isAdmin(account['id']):
             assert Response(status_code=400, content='没有权限修改')
-
-        ## 读取本级列表的 option
-        #option = Option(dir)
 
         # 处理PUT请求(创建文件夹)
         if request.method == 'PUT':
@@ -453,10 +442,8 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
             # 处理权限 setAdmin
             admin = request.query_params.get('admin')
             if admin:
-                print(admin)
                 account = queryAccount(id=admin)
-                print(account)
-                option.setAdmin(account['mobile'], option.isAdmin(account['mobile']) == False)
+                option.setAdmin(account['id'], option.isAdmin(account['id']) == False)
                 return JSONResponse({'status': True})
 
             return Response(status_code=400, content='参数错误')

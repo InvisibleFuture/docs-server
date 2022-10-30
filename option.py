@@ -33,16 +33,16 @@ class Option(object):
 
 
     # 是否有权限管理
-    def isAdmin(self, mobile):
-        return mobile in set(self.option['admin'])
+    def isAdmin(self, id):
+        return id in set(self.option['admin'])
 
 
     # 设置权限(授权用户或者取消授权)
-    def setAdmin(self, name, value):
+    def setAdmin(self, id, value):
         if value:
-            self.option['admin'].append(name)
+            self.option['admin'].append(id)
         else:
-            self.option['admin'].remove(name)
+            self.option['admin'].remove(id)
         with open(self.filename, "w", encoding="utf-8") as f:
             yaml.dump(self.option, f)
 
