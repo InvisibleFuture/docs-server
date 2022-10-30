@@ -1,4 +1,6 @@
-# -*- coding:utf-8 -*-
+#!/usr/bin/python3
+#coding=utf-8
+
 from ast import Not
 from genericpath import isdir
 import time, os, shutil, uvicorn, zipfile, ctypes, platform, uuid, requests
@@ -70,21 +72,30 @@ def get_user_info(user_access_token):
     print(response_dict)
     return response_dict.get("data")
 
+from copy import deepcopy
+from account import queryAccount, queryAccountList
 
-# 通过手机号获取用户信息
-def get_user_info_mobile(mobile):
-    url = 'https://api-saas.lzhhjs.cn/apaas/openapi/form/smart/62fb0c62e4b0a9d4b9f53a10/query'
-    headers = { 'Authorization': 'rv3lR5AnOsczhmd7rSx1uIyxMeBACe5X', 'Content-Type': 'application/json;charset=UTF-8' }
-    response = requests.post(url=url, headers=headers, json={'tel':mobile})
-    response_dict = response.json()
-    # print(response_dict['result'])
-    # 取 tel 等于 mobile 的
-    user = None
-    for item in response_dict['result']:
-        if item['tel'] == mobile:
-            user = item
-            break
-    return user
+
+# 查询简单用户列表
+@app.get("/user/list")
+def user_list(id:str=None, mobile:str=None, name:str=None, admin:str=None, page:int=1, pageSize:int=10):
+    accounts = queryAccountList(id=id, mobile=mobile, name=name)
+
+    # 分页
+    accounts = deepcopy(accounts[(page-1)*pageSize:page*pageSize])
+
+    # 附加是否为指定路径的管理员
+    if admin is not None:
+        option = Option('static' + admin)
+        for i in accounts:
+            account = queryAccount(id=i['id'])
+            i['admin'] = option.isAdmin(account['mobile'])
+
+    # 去除手机号字段
+    for i in accounts:
+        i.pop('mobile')
+
+    return accounts
 
 
 # 飞书登录
@@ -95,14 +106,14 @@ def feishu_callback(code:str, response:Response):
     print('user_info:', item)
 
     # 从平台获取用户信息
-    user_info = get_user_info_mobile(item.mobile)
+    user_info = queryAccount(mobile=item.mobile)
     print('user_info:', user_info)
     if user_info is None:
         raise HTTPException(status_code=401, detail='手机号未注册')
 
     # 生成 session
     session = str(uuid.uuid4())
-    session_list[session] = {item.mobile}
+    session_list[session] = item.mobile
     response.set_cookie(key="session", value=session)
     return {"msg": "登录成功", "userinfo": user_info}
 
@@ -117,21 +128,29 @@ def profile(session:str=Cookie(None)):
     mobile = session_list.get(session)
     print("session:", session)
     print("mobile:", mobile)
+
     if mobile is None:
         return {
+            'id': '',
             'online': False,
             'admin': False,
-            'name':'Lemon',
-            'email':'Lemon@disp.com',
+            'name':'游客',
             'avatar':'https://avatars.githubusercontent.com/u/6184465?v=4',
         }
-    return {
-        'online': True,
-        'admin': True,
-        'name':'Lemon',
-        'email':'Lemon@disp.com',
-        'avatar':'https://avatars.githubusercontent.com/u/6184465?v=4',
-    }
+    if mobile == '0':
+        return {
+            'id': '0',
+            'online': True,
+            'admin': True,
+            'name':'测试账户',
+            'avatar':'https://avatars.githubusercontent.com/u/6184465?v=4',
+        }
+    user = queryAccount(mobile=mobile)
+    if user is None:
+        user['online'] = True
+        user['admin'] = False
+        return user
+    raise HTTPException(status_code=401, detail='请重新登录')
 
 code_list = {}
 
@@ -139,7 +158,7 @@ code_list = {}
 @app.post("/sign/sendcode", summary="发送短信验证码")
 def send_tpl_sms(mobile:str):
     # 先判断手机号是否存在(从平台获取)
-    user = get_user_info_mobile(mobile)
+    user = queryAccount(mobile=mobile)
     if user is None:
         return { 'code': 400, 'message': '手机号不存在' }
     
@@ -174,7 +193,7 @@ def signin(item:Signin, response:Response):
 
     # 判断验证码是否正确, 判断验证码是否过期(5分钟)
     if (item.code != '000000'):
-        user_info = get_user_info_mobile(item.mobile)
+        user_info = queryAccount(mobile=item.mobile)
         print('user_info:', user_info)
         
         code = code_list.get(item.mobile)
@@ -185,7 +204,7 @@ def signin(item:Signin, response:Response):
 
     # 生成 session
     session = str(uuid.uuid4())
-    session_list[session] = {item.mobile}
+    session_list[session] = item.mobile
     response.set_cookie(key="session", value=session)
     return {"msg": "登录成功", "userinfo": user_info}
 
@@ -349,6 +368,14 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
                             elif j != 'option.yaml':
                                 other_count+=1
                                 other_size += os.path.getsize(root + '/' + j)
+                # 查询管理列表
+                adminMobileList = option.getAdmin()
+                adminList = []
+                for x in adminMobileList:
+                    admin = queryAccount(mobile=x)
+                    admin['admin'] = True
+                    adminList.append(admin)
+
                 return JSONResponse({
                     'name': path[-1],
                     'free': get_free_space(dir),
@@ -367,6 +394,7 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
                         'document': other_count,
                     },
                     'order': option.getOrder(),
+                    'admin': adminList,
                 })
             # 判断文件是否存在(提供文件下载)
             elif os.path.isfile(dir):
@@ -419,9 +447,16 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
             # 处理排序
             order = request.query_params.get('order')
             if order:
-                print('xxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
-                print('order', order)
                 option.setOrder(order.split(","))
+                return JSONResponse({'status': True})
+
+            # 处理权限 setAdmin
+            admin = request.query_params.get('admin')
+            if admin:
+                print(admin)
+                account = queryAccount(id=admin)
+                print(account)
+                option.setAdmin(account['mobile'], option.isAdmin(account['mobile']) == False)
                 return JSONResponse({'status': True})
 
             return Response(status_code=400, content='参数错误')

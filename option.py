@@ -33,8 +33,8 @@ class Option(object):
 
 
     # 是否有权限管理
-    def isAdmin(self, name):
-        return name in set(self.option['admin'])
+    def isAdmin(self, mobile):
+        return mobile in set(self.option['admin'])
 
 
     # 设置权限(授权用户或者取消授权)
@@ -46,6 +46,8 @@ class Option(object):
         with open(self.filename, "w", encoding="utf-8") as f:
             yaml.dump(self.option, f)
 
+    def getAdmin(self):
+        return self.option['admin']
 
     # 获取排序列表
     def getOrder(self):
