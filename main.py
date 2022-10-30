@@ -361,12 +361,12 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
                 adminMobileList = option.getAdmin()
                 adminList = []
                 for x in adminMobileList:
-                    if x == '0':
-                        continue
-                    admin = queryAccount(id=x)
+                    admin = deepcopy(queryAccount(id=x))
                     if admin is not None:
+                        admin.pop('mobile')
                         admin['admin'] = True
                         adminList.append(admin)
+
                 return JSONResponse({
                     'name': path[-1],
                     'free': get_free_space(dir),
