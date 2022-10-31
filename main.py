@@ -324,7 +324,9 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
                         # 从 yaml 读取权限信息(允许写权限组, 允许读权限组, 允许看权限组)(每个文件的私有状态)
                         data.append({'name': i, 'type': 'dir', 'size': size(item), 'count': count(item), 'private': option.isPrivate(i), 'admin': admins})
                     elif i != 'option.yaml':
-                        data.append({'name': i, 'type': 'file', 'size': os.path.getsize(item), 'private': option.isPrivate(i), 'admin': admins})
+                        mtime = os.path.getmtime(item) # 获取此文件的时间
+                        mtime = int(time.mktime(time.localtime(mtime))) # 转时间戳
+                        data.append({'name': i, 'type': 'file', 'size': os.path.getsize(item), 'time': mtime, 'private': option.isPrivate(i), 'admin': admins})
 
                 # 按 order 排序
                 order = option.getOrder()
