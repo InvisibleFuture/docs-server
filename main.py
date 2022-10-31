@@ -109,6 +109,10 @@ def feishu_callback(code:str, response:Response):
     session = str(uuid.uuid4())
     session_list[session] = user['id']
     response.set_cookie(key="session", value=session)
+
+    option = Option('static')
+    user['online'] = True
+    user['admin'] = option.isAdmin(user['id'])
     return user
 
 
