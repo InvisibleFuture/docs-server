@@ -9,12 +9,10 @@ class Option(object):
         if os.path.isfile(self.filename):
             with open(self.filename, "r", encoding="utf-8") as f:
                 self.option = yaml.load(f, Loader=yaml.FullLoader)
-                # 检查格式是否正确或者直接补全
         else:
             self.option = {'private': [], 'admin': [], 'order':[]}
             with open(self.filename, "w", encoding="utf-8") as f:
                 yaml.dump(self.option, f)
-
 
     # 验证指定文件是否私有
     def isPrivate(self, name):
@@ -32,10 +30,13 @@ class Option(object):
             yaml.dump(self.option, f)
 
 
-    # 是否有权限管理
+    # 是否有权限管理(权限向下传递)
     def isAdmin(self, id):
         return id in set(self.option['admin'])
 
+    # 获取管理员列表(权限向下传递)
+    def getAdmin(self):
+        return self.option['admin']
 
     # 设置权限(授权用户或者取消授权)
     def setAdmin(self, id, value):
@@ -45,9 +46,6 @@ class Option(object):
             self.option['admin'].remove(id)
         with open(self.filename, "w", encoding="utf-8") as f:
             yaml.dump(self.option, f)
-
-    def getAdmin(self):
-        return self.option['admin']
 
     # 获取排序列表
     def getOrder(self):

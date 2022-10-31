@@ -275,24 +275,17 @@ from option import Option
 # 中间件, 文件和文件夹
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next, session:str=Cookie(None)):
-    print('中间件', request.url.path)
-
     id = session_list.get(session)
-    print("session:", session)
-    print("mobile:", id)
-    # 登录后可见范围不同
 
     # 压缩文件夹
     if request.url.path.startswith('/zip/'):
         paths = request.url.path.split('/')
         dir = 'static/' + '/'.join(paths[2:])
-        print('path:', paths)
         # 处理 GET 请求
         if request.method == 'GET':
             # 判断文件夹是否存在(返回文件夹详情)
             if os.path.isdir(dir):
                 # 将指定的目录压缩为 zip, 并提供下载
-                print(paths[-1])
                 path = zip_file_path(dir, 'tmps', paths[-1]+'.zip')
                 return FileResponse(path)
         return Response(status_code=400, content='400 操作禁止')
@@ -301,11 +294,9 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
     if request.url.path.startswith('/api/'):
         path = request.url.path.split('/')
         dir = 'static/' + '/'.join(path[2:])
-        print('path:', path)
 
         # 无论文件还是文件夹的修改都读取上一级option
         option = Option('static/' + '/'.join(path[2:-1]))
-        print('static/' + '/'.join(path[2:-1]))
 
         # 处理 GET 请求
         if request.method == 'GET':
@@ -314,18 +305,26 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
 
             # 判断文件夹是否存在(返回文件夹详情)
             if os.path.isdir(dir):
-                
+                # 从上级option中获取管理员列表
+                admins = []
+                pt = path[2:]
+                for i in path[1:]:
+                    option = Option('static/' + '/'.join(pt))
+                    admins.extend(option.getAdmin())
+                    pt = pt[:-1]
+                admins = list(set(admins))
+
                 # 读取本级列表的 option
                 option = Option(dir)
                 data = []
-                
+
                 for i in os.listdir(dir):
                     item = dir + '/' + i
                     if os.path.isdir(item):
                         # 从 yaml 读取权限信息(允许写权限组, 允许读权限组, 允许看权限组)(每个文件的私有状态)
-                        data.append({'name': i, 'type': 'dir', 'size': size(item), 'count': count(item), 'private': option.isPrivate(i), 'admin': option.getAdmin()})
+                        data.append({'name': i, 'type': 'dir', 'size': size(item), 'count': count(item), 'private': option.isPrivate(i), 'admin': admins})
                     elif i != 'option.yaml':
-                        data.append({'name': i, 'type': 'file', 'size': os.path.getsize(item), 'private': option.isPrivate(i)})
+                        data.append({'name': i, 'type': 'file', 'size': os.path.getsize(item), 'private': option.isPrivate(i), 'admin': admins})
 
                 # 按 order 排序
                 order = option.getOrder()
