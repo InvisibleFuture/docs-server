@@ -10,7 +10,7 @@ class Option(object):
             with open(self.filename, "r", encoding="utf-8") as f:
                 self.option = yaml.load(f, Loader=yaml.FullLoader)
         else:
-            self.option = {'private': [], 'admin': [], 'order':[]}
+            self.option = {'private': [], 'admin': [], 'order':[], 'download':[]}
             with open(self.filename, "w", encoding="utf-8") as f:
                 yaml.dump(self.option, f)
 
@@ -54,5 +54,20 @@ class Option(object):
     # 设置排序列表
     def setOrder(self, data:list):
         self.option['order'] = data
+        with open(self.filename, "w", encoding="utf-8") as f:
+            yaml.dump(self.option, f)
+
+    def isDownload(self, name):
+        download = self.option['download'] if 'download' in self.option.keys() else []
+        return name in set(download)
+
+    def setDownload(self, name, value):
+        if 'download' not in self.option.keys():
+            self.option['download'] = []
+        if value:
+            self.option['download'].append(name)
+        else:
+            self.option['download'].remove(name)
+        self.option['download'] = list(set(self.option['download']))
         with open(self.filename, "w", encoding="utf-8") as f:
             yaml.dump(self.option, f)

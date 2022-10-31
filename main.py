@@ -326,7 +326,7 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
                     elif i != 'option.yaml':
                         mtime = os.path.getmtime(item) # 获取此文件的时间
                         mtime = int(time.mktime(time.localtime(mtime))) # 转时间戳
-                        data.append({'name': i, 'type': 'file', 'size': os.path.getsize(item), 'time': mtime, 'private': option.isPrivate(i), 'admin': admins})
+                        data.append({'name': i, 'type': 'file', 'size': os.path.getsize(item), 'time': mtime, 'private': option.isPrivate(i), 'download':option.isDownload(i), 'admin': admins})
 
                 # 按 order 排序
                 order = option.getOrder()
@@ -421,6 +421,12 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
                 option.setPrivate(path[-1], private == 'true')
                 return JSONResponse({'status': True})
             
+            # 处理下载
+            download = request.query_params.get('download')
+            if download:
+                option.setDownload(path[-1], download == 'true')
+                return JSONResponse({'status': True})
+
             # 读取本级列表的 option
             option = Option(dir)
             
