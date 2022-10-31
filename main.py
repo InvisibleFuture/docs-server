@@ -288,6 +288,15 @@ from option import Option
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next, session:str=Cookie(None)):
     id = session_list.get(session)
+    
+    # 判断是否为下载文件(记录下载次数到option.yaml)
+    if request.url.path.startswith('/download/'):
+        path = request.url.path[10:]
+        paths = path.split('/')
+        if len(paths) == 4:
+            option = Option('static/' + paths[0] + '/' + paths[1] + '/' + paths[2])
+            option.setDownloadCount(paths[3])
+
 
     # 压缩文件夹
     if request.url.path.startswith('/zip/'):
@@ -334,11 +343,25 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
                     item = dir + '/' + i
                     if os.path.isdir(item):
                         # 从 yaml 读取权限信息(允许写权限组, 允许读权限组, 允许看权限组)(每个文件的私有状态)
-                        data.append({'name': i, 'type': 'dir', 'size': size(item), 'count': count(item), 'private': option.isPrivate(i), 'admin': admins})
+                        data.append({
+                            'name': i,
+                            'type': 'dir',
+                            'size': size(item),
+                            'count': count(item),
+                            'private': option.isPrivate(i),
+                            'admin': admins,
+                        })
                     elif i != 'option.yaml':
-                        mtime = os.path.getmtime(item) # 获取此文件的时间
-                        mtime = int(time.mktime(time.localtime(mtime))) # 转时间戳
-                        data.append({'name': i, 'type': 'file', 'size': os.path.getsize(item), 'time': mtime, 'private': option.isPrivate(i), 'download':option.isDownload(i), 'admin': admins})
+                        data.append({
+                            'name': i,
+                            'type': 'file',
+                            'size': os.path.getsize(item),
+                            'time': int(time.mktime(time.localtime(os.path.getmtime(item)))),
+                            'private': option.isPrivate(i),               # 文件是否私有
+                            'download':option.isDownload(i),              # 文件是否允许下载
+                            'download_count': option.getDownloadCount(i), # 获取文件下载次数
+                            'admin': admins,
+                        })
 
                 # 按 order 排序
                 order = option.getOrder()
