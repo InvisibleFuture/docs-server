@@ -175,6 +175,9 @@ def send_tpl_sms(mobile:str):
 def signin(item:Signin, response:Response):
     # 判断验证码是否正确, 判断验证码是否过期(5分钟)
     user = queryAccount(mobile=item.mobile)
+    if user is None:
+        raise HTTPException(status_code=400, detail='账号不存在')
+
     if (item.code != '000000'):
         code = code_list.get(item.mobile)
         if (code is None) or (time.time() - code['time'] > 300):
@@ -185,6 +188,11 @@ def signin(item:Signin, response:Response):
     session = str(uuid.uuid4())
     session_list[session] = user['id']
     response.set_cookie(key="session", value=session)
+
+    option = Option('static')
+
+    user['online'] = True
+    user['admin'] = option.isAdmin(user['id'])
     return user
 
 
