@@ -82,6 +82,7 @@ class Option(object):
 
     # 下载计数器(每次增加1)
     def setDownloadCount(self, name):
+        print(name)
         if 'downloadCount' not in self.option.keys():
             self.option['downloadCount'] = {}
         if name not in self.option['downloadCount'].keys():

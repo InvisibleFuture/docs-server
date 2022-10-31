@@ -290,12 +290,14 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
     id = session_list.get(session)
     
     # 判断是否为下载文件(记录下载次数到option.yaml)
-    if request.url.path.startswith('/download/'):
-        path = request.url.path[10:]
-        paths = path.split('/')
-        if len(paths) == 4:
-            option = Option('static/' + paths[0] + '/' + paths[1] + '/' + paths[2])
-            option.setDownloadCount(paths[3])
+    if request.url.path.startswith('/static/'):
+        # 去除结尾文件名再合并回路径
+        paths = request.url.path.split('/')
+        path = '/'.join(paths[:-1])[1:]
+        print(path)
+        print(paths[-1])
+        option = Option(path)
+        option.setDownloadCount(paths[-1])
 
 
     # 压缩文件夹
