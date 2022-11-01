@@ -437,7 +437,14 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
         if request.method == 'PUT':
             if not os.path.exists(dir):
                 os.mkdir(dir)
-            return JSONResponse({'status': True, 'name': path[-1]})
+            return JSONResponse({
+                'name': path[-1],
+                'type': 'dir',
+                'size': 0,
+                'count': 0,
+                'private': False,
+                'admin': [],
+            })
 
         # 处理PATCH请求(修改文件夹)
         if request.method == 'PATCH':
@@ -484,13 +491,25 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
 
         # 处理POST请求(批量上传文件)
         if request.method == 'POST':
+            data = []
             form = await request.form()
             file = form.getlist('file')
             for i in file:
-                print(dir + '/' + i.filename)
-                with open(dir + '/' + i.filename, 'wb') as f:
+                path = dir + '/' + i.filename
+                with open(path, 'wb') as f:
                     f.write(i.file.read())
-            return JSONResponse({'status': True, 'name': path[-1]})
+                data.append({
+                    'name': i.filename,
+                    'type': 'file',
+                    'size': os.path.getsize(path),
+                    'time': int(time.time()),
+                    'private': False,    # 文件是否私有
+                    'download': False,   # 文件是否允许下载
+                    'download_count': 0, # 获取文件下载次数
+                    'admin': [],
+                })
+            return JSONResponse(data)
+            #{'status': True, 'name': path[-1]}
 
         # 处理DELETE请求(删除文件夹或文件)
         if request.method == 'DELETE':
