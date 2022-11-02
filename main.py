@@ -209,16 +209,76 @@ def signout(response=Response):
 
 # 模糊检索文件
 @app.get("/search", summary="模糊检索")
-def search_files(name: str):
+def search_files(name: str, session:str=Cookie(None)):
+    id = session_list.get(session)
     # 从 static 文件夹遍历搜索文件或文件夹名中包含搜索词name的文件或文件夹
     result = []
     for root, dirs, files in os.walk('static'):
+        # 从上级option中获取管理员列表
+        admins = []
+        path = root.split('/')
+        pt = path
+        for i in path:
+            option = Option('/'.join(pt))
+            admins.extend(option.getAdmin())
+            pt = pt[:-1]
+        admins = list(set(admins))
+        isAdmin = id in admins
+
+
+        # 排除 option.yaml 文件
         for each in files:
+            if 'option.yaml' == each:
+                continue
+            # 不为私有或者已经登录(排除没有权限的文件)
             if name in each:
-                result.append({'type':'file', 'path':os.path.join(root, each)})
+                # 从上级option中获取是否私有
+                isPrivate = False
+                path = root.split('/')
+                pt = path
+                for i in path:
+                    option = Option('/'.join(pt))
+                    isPrivate = option.isPrivate(pt[-1])
+                    if isPrivate:
+                        break
+                    pt = pt[:-1]
+                option = Option(root)
+                if not isPrivate:
+                    isPrivate = option.isPrivate(each)
+                if not isPrivate or isAdmin:
+                    result.append({
+                        'type':'file',
+                        'path': os.path.join(root, each),
+                        'name': each,
+                        'size': os.path.getsize(os.path.join(root, each)),
+                        'time': os.path.getmtime(os.path.join(root, each)),
+                        'private': isPrivate,
+                        'admin': option.getAdmin(),
+                    })
         for each in dirs:
             if name in each:
-                result.append({'type':'dir', 'path':os.path.join(root, each)})
+                # 从上级option中获取是否私有
+                isPrivate = False
+                path = root.split('/')
+                pt = path
+                for i in path:
+                    option = Option('/'.join(pt))
+                    isPrivate = option.isPrivate(pt[-1])
+                    if isPrivate:
+                        break
+                    pt = pt[:-1]
+                option = Option(root)
+                if not isPrivate:
+                    isPrivate = option.isPrivate(each)
+                if not isPrivate or isAdmin:
+                    result.append({
+                        'type':'dir',
+                        'path': os.path.join(root, each),
+                        'name': each,
+                        'size': size(os.path.join(root, each)),
+                        'private': isPrivate,
+                        'admin': option.getAdmin(),
+                    })
     return result
 
 
