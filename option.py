@@ -29,7 +29,6 @@ class Option(object):
         with open(self.filename, "w", encoding="utf-8") as f:
             yaml.dump(self.option, f)
 
-
     # 是否有权限管理(权限向下传递)
     def isAdmin(self, id):
         return id in set(self.option['admin'])
@@ -57,10 +56,12 @@ class Option(object):
         with open(self.filename, "w", encoding="utf-8") as f:
             yaml.dump(self.option, f)
 
+    # 是否禁止下载
     def isDownload(self, name):
         download = self.option['download'] if 'download' in self.option.keys() else []
         return name in set(download)
 
+    # 设置禁止下载
     def setDownload(self, name, value):
         if 'download' not in self.option.keys():
             self.option['download'] = []

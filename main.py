@@ -2,7 +2,9 @@
 #coding=utf-8
 
 from ast import Not
+from email import header
 from genericpath import isdir
+from http import cookies
 import time, os, shutil, uvicorn, zipfile, ctypes, platform, uuid, requests
 from fastapi import FastAPI, Request, Response, HTTPException, Cookie
 from fastapi.staticfiles import StaticFiles
@@ -321,44 +323,29 @@ def get_free_space(folder):
         st = os.statvfs(folder)
         return st.f_bavail * st.f_frsize
 
-def get_zip_file(input_path, result):
-    """
-    对目录进行深度优先遍历
-    :param input_path:
-    :param result:
-    :return:
-    """
-    files = os.listdir(input_path)
-    for file in files:
-        if os.path.isdir(input_path + '/' + file):
-            get_zip_file(input_path + '/' + file, result)
-        else:
-            result.append(input_path + '/' + file)
-
-def zip_file_path(input_path, output_path, output_name):
-    """
-    压缩文件，相对路径
-    :param input_path: 压缩的文件夹路径
-    :param output_path: 解压（输出）的路径
-    :param output_name: 压缩包名称
-    :return:
-    """
-    f = zipfile.ZipFile(output_path + '/' + output_name, 'w', zipfile.ZIP_DEFLATED)
-    filelists = []
-    get_zip_file(input_path, filelists)
-    for file in filelists:
-        f.write(file)
-    f.close()
-    return output_path + r"/" + output_name
 
 from option import Option
 
+# 从上级option中获取管理员列表
+def isAdmin(input_path, id) -> bool:
+    admins = []
+    paths = input_path.split('/')
+    pt = paths[1:]
+    for i in paths:
+        option = Option('static/' + '/'.join(pt))
+        admins.extend(option.getAdmin())
+        pt = pt[:-1]
+    admins = list(set(admins))
+    return id in admins
+
+
 # 中间件, 文件和文件夹
 @app.middleware("http")
-async def add_process_time_header(request: Request, call_next, session:str=Cookie(None)):
+async def add_process_time_header(request: Request, call_next):
+    session = request.cookies.get('session')
     id = session_list.get(session)
-    
-    # 判断是否为下载文件(记录下载次数到option.yaml)
+
+    # 判断是否为直接下载文件(记录下载次数到option.yaml)
     if request.url.path.startswith('/static/'):
         # 去除结尾文件名再合并回路径
         paths = request.url.path.split('/')
@@ -371,16 +358,55 @@ async def add_process_time_header(request: Request, call_next, session:str=Cooki
 
     # 压缩文件夹
     if request.url.path.startswith('/zip/'):
+        # 获得文件夹路径
+        dir = 'static' + request.url.path[4:]
+        print(dir)
         paths = request.url.path.split('/')
-        dir = 'static/' + '/'.join(paths[2:])
-        # 处理 GET 请求
-        if request.method == 'GET':
-            # 判断文件夹是否存在(返回文件夹详情)
-            if os.path.isdir(dir):
-                # 将指定的目录压缩为 zip, 并提供下载
-                path = zip_file_path(dir, 'tmps', paths[-1]+'.zip')
-                return FileResponse(path)
-        return Response(status_code=400, content='400 操作禁止')
+        print('paths:', paths)
+        # 判断目标文件夹是否存在(判断是否为文件夹)
+        if not os.path.exists(dir) or not os.path.isdir(dir):
+            headers = { 'content-type': 'text/html;charset=UTF-8' }
+            return Response(status_code=404, content='文件夹不存在', headers=headers)
+        ## 判断是否为管理员(是否为私有)
+        paths = dir.split('/')
+        option = Option('/'.join(paths[:-1]))
+        if option.isPrivate(paths[-1]) and not isAdmin(dir, id):
+            headers = { 'content-type': 'text/html;charset=UTF-8' }
+            return Response(status_code=403, content='权限不足', headers=headers)
+        # 排除没有权限的文件和文件夹
+        def get_zip_file(input_path, result):
+            files = os.listdir(input_path)
+            for file in files:
+                if os.path.isdir(input_path + '/' + file):
+                    # 检查是否有权限(如果不是私有或者是管理员)
+                    option = Option(input_path)
+                    if not option.isPrivate(file) or option.isAdmin(id):
+                        get_zip_file(input_path + '/' + file, result)
+                elif file != 'option.yaml':
+                    # 检查是否有权限(如果不是私有或者是管理员)
+                    option = Option(input_path)
+                    if not option.isPrivate(file) or option.isAdmin(id) or isAdmin(input_path, id):
+                        result.append(input_path + '/' + file)
+        # 打包文件
+        def zip_file_path(input_path, output_path, output_name):
+            f = zipfile.ZipFile(output_path + '/' + output_name, 'w', zipfile.ZIP_DEFLATED)
+            filelists = []
+            get_zip_file(input_path, filelists)
+            for file in filelists:
+                f.write(file)
+            f.close()
+            return output_path + r"/" + output_name
+        # 设置包缓存路径
+        if id is None:
+            id = 'x'
+        file_name = paths[-1] + '-' + id + '.zip'
+        # 先删除旧的文件
+        if os.path.exists('tmps/' + file_name):
+            os.remove('tmps/' + file_name)
+        # 打包新文件
+        zip_file_path(dir, 'tmps', file_name)
+        return FileResponse('tmps/' + file_name)
+
 
     # 静态文件夹
     if request.url.path.startswith('/api/'):
