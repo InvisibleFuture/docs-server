@@ -10,7 +10,7 @@ class Option(object):
             with open(self.filename, "r", encoding="utf-8") as f:
                 self.option = yaml.load(f, Loader=yaml.FullLoader)
         else:
-            self.option = {'private': [], 'admin': [], 'order':[], 'download':[], 'downloadCount':{}}
+            self.option = {'private': [], 'admin': [], 'order':[], 'download':[], 'downloadCount':{}, 'viewsCount':{}}
             with open(self.filename, "w", encoding="utf-8") as f:
                 yaml.dump(self.option, f)
 
@@ -92,3 +92,21 @@ class Option(object):
         with open(self.filename, "w", encoding="utf-8") as f:
             yaml.dump(self.option, f)
 
+    # 查看计数器
+    def getViewsCount(self, name):
+        if 'viewsCount' not in self.option.keys():
+            self.option['viewsCount'] = {}
+        if name not in self.option['viewsCount'].keys():
+            self.option['viewsCount'][name] = 0
+        return self.option['viewsCount'][name]
+
+    # 查看计数器(每次增加1)
+    def setViewsCount(self, name):
+        print('viewsCount:', name)
+        if 'viewsCount' not in self.option.keys():
+            self.option['viewsCount'] = {}
+        if name not in self.option['viewsCount'].keys():
+            self.option['viewsCount'][name] = 0
+        self.option['viewsCount'][name] += 1
+        with open(self.filename, "w", encoding="utf-8") as f:
+            yaml.dump(self.option, f)

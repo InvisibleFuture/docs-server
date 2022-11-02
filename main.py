@@ -463,6 +463,7 @@ async def add_process_time_header(request: Request, call_next):
                             'private': option.isPrivate(i),               # 文件是否私有
                             'download':option.isDownload(i),              # 文件是否允许下载
                             'download_count': option.getDownloadCount(i), # 获取文件下载次数
+                            'views_count': option.getViewsCount(i),       # 获取文件查看次数
                             'admin': admins,
                         })
 
