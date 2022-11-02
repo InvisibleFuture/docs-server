@@ -15,10 +15,12 @@ def update_account_list():
     global account_last
     if time.time() - account_last < 600:
         return
+    print('重新下载用户列表')
     url = 'https://api-saas.lzhhjs.cn/apaas/openapi/form/smart/62fb0c62e4b0a9d4b9f53a10/query'
     headers = { 'Authorization': 'rv3lR5AnOsczhmd7rSx1uIyxMeBACe5X', 'Content-Type': 'application/json;charset=UTF-8' }
     response = requests.post(url=url, headers=headers, json={}) # json={'tel':mobile}
     response_dict = response.json()
+    print('用户列表下载完毕')
 
     # 从 response_dict 提取使用的字段
     new_account_list = []

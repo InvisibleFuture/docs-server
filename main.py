@@ -355,6 +355,25 @@ async def add_process_time_header(request: Request, call_next):
         option = Option(path)
         option.setDownloadCount(paths[-1])
 
+    # 判断是否为直接查看文件(记录下载次数到option.yaml)
+    if request.url.path.startswith('/views/'):
+        # request.url.path 中 /views/ 替换为 /static/
+        # 去除结尾文件名再合并回路径
+        paths = request.url.path.replace('/views/','/static/').split('/')
+        path = '/'.join(paths[:-1])[1:]
+        dir = '/'.join(paths)[1:]
+        print('dir:', dir)
+        print(path)
+        print(paths[-1])
+        option = Option(path)
+        option.setViewsCount(paths[-1])
+        # 判断文件是否存在(提供文件下载)
+        if os.path.isfile(dir):
+            print('文件')
+            return FileResponse(dir)
+        else:
+            print('不存在')
+            return Response(status_code=404, content='404 Not Found')
 
     # 压缩文件夹
     if request.url.path.startswith('/zip/'):
