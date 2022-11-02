@@ -102,8 +102,17 @@ def user_list(id:str=None, mobile:str=None, name:str=None, admin:str=None, page:
 def feishu_callback(code:str, response:Response):
     auth.authorize_user_access_token(code)
     item = auth.get_user_info()
-    user = queryAccount(mobile=item.mobile)
+    print(item)
+    if item is None:
+        print('飞书账号信息未取得')
+        raise HTTPException(status_code=401, detail='飞书账号信息未取得')
+    # 去除 mobile 前面的 +86
+    if item['mobile'].startswith('+86'):
+        item['mobile'] = item['mobile'][3:]
+    user = queryAccount(mobile=item['mobile'])
+    print(user)
     if user is None:
+        print('手机号未注册')
         raise HTTPException(status_code=401, detail='手机号未注册')
     # 生成 session
     session = str(uuid.uuid4())
