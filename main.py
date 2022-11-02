@@ -413,6 +413,9 @@ async def add_process_time_header(request: Request, call_next):
         path = request.url.path.split('/')
         dir = 'static/' + '/'.join(path[2:])
 
+        # 设置计时器时间戳
+        start_time = time.time()
+
         # 无论文件还是文件夹的修改都读取上一级option
         option = Option('static/' + '/'.join(path[2:-1]))
 
@@ -420,6 +423,9 @@ async def add_process_time_header(request: Request, call_next):
         if request.method == 'GET':
             if id or option.isPrivate(path[-1]):
                 assert Response(status_code=400, content='没有权限访问')
+
+            # 打印耗时
+            print('耗时0:', time.time() - start_time)
 
             # 判断文件夹是否存在(返回文件夹详情)
             if os.path.isdir(dir):
@@ -460,6 +466,9 @@ async def add_process_time_header(request: Request, call_next):
                             'admin': admins,
                         })
 
+                # 打印耗时
+                print('耗时1:', time.time() - start_time)
+
                 # 按 order 排序
                 order = option.getOrder()
                 data.sort(key=lambda x: order.index(x['name']) if x['name'] in order else len(order))
@@ -480,15 +489,33 @@ async def add_process_time_header(request: Request, call_next):
                             elif j != 'option.yaml':
                                 other_count+=1
                                 other_size += os.path.getsize(root + '/' + j)
+
+                # 打印耗时
+                print('耗时2:', time.time() - start_time)
+
                 # 查询管理列表
                 adminMobileList = option.getAdmin()
+
+                # 打印耗时
+                print('耗时3:', time.time() - start_time)
+                print(adminMobileList)
+
                 adminList = []
                 for x in adminMobileList:
+                    print('耗时3-a:', time.time() - start_time)
                     admin = deepcopy(queryAccount(id=x))
+                    print('耗时3-b:', time.time() - start_time)
                     if admin is not None:
                         admin.pop('mobile')
                         admin['admin'] = True
                         adminList.append(admin)
+                    # 打印耗时
+                    print('耗时4:', time.time() - start_time)
+                    print(admin)
+
+
+                # 打印耗时
+                print('耗时5:', time.time() - start_time)
 
                 return JSONResponse({
                     'name': path[-1],
