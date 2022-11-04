@@ -38,8 +38,12 @@ class Signin(BaseModel):
 
 
 # 获取环境变量值
-APP_ID="cli_a3a8a7faa4b8d00b"
-APP_SECRET="IoyMD1BmClcX4BNbEwF2BdDNIS2lkJYb"
+#APP_ID="cli_a3a8a7faa4b8d00b"
+#APP_SECRET="IoyMD1BmClcX4BNbEwF2BdDNIS2lkJYb"
+#FEISHU_HOST="https://open.feishu.cn"
+
+APP_ID="cli_a3eb7ddd0af8900c"
+APP_SECRET="dWXmQwcOpsOHZFGMsxXcxgMJBZnu8aDZ"
 FEISHU_HOST="https://open.feishu.cn"
 
 
