@@ -51,8 +51,9 @@ FEISHU_HOST="https://open.feishu.cn"
 auth = Auth(FEISHU_HOST, APP_ID, APP_SECRET)
 
 
-# 获取 user_access_token
+# 获取 user_access_token:
 def get_user_access_token(code):
+    print("获取 user_access_token")
     url = "https://open.feishu.cn/open-apis/auth/v3/app_access_token/internal"
     # "app_id" 和 "app_secret" 位于HTTP请求的请求体
     req_body = {"app_id": APP_ID, "app_secret": APP_SECRET}
@@ -106,6 +107,7 @@ def user_list(id:str=None, mobile:str=None, name:str=None, admin:str=None, page:
 # 飞书登录
 @app.get("/feishu/callback")
 def feishu_callback(code:str, response:Response):
+    print("飞书登录回调")
     auth.authorize_user_access_token(code)
     item = auth.get_user_info()
     print(item)
@@ -133,7 +135,8 @@ def feishu_callback(code:str, response:Response):
 
 @app.get("/feishu/get_appid")
 def feishu_appid():
-    return { "appid": "cli_a3a8a7faa4b8d00b" }
+    print('客户端获取飞书appid')
+    return { "appid": APP_ID }
 
 # 获取账户信息
 @app.get("/sign", summary="获取资料")
@@ -674,4 +677,4 @@ async def add_process_time_header(request: Request, call_next):
     return response
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", port=2333, reload=True, workers=1)
+    uvicorn.run("main:app", port=8180, reload=True, workers=1)

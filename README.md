@@ -14,3 +14,6 @@ TODO:
 pip install pipreqs
 pipreqs ./
 ```
+
+# 表单依赖库可能需要手动安装
+pip install python-multipart

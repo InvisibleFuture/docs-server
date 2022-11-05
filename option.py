@@ -22,7 +22,7 @@ class Option(object):
     def setPrivate(self, name, value):
         if value:
             self.option['private'].append(name)
-        else:
+        elif name in self.option['private']:
             self.option['private'].remove(name)
         # 保存到文件(去重)
         self.option['private'] = list(set(self.option['private']))
@@ -41,7 +41,7 @@ class Option(object):
     def setAdmin(self, id, value):
         if value:
             self.option['admin'].append(id)
-        else:
+        elif id in self.option['admin']:
             self.option['admin'].remove(id)
         with open(self.filename, "w", encoding="utf-8") as f:
             yaml.dump(self.option, f)
